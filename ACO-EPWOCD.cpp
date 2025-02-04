@@ -4,7 +4,7 @@ int pop=100;
 const int T=100;
 int N;
 int NE;
-const double p=1.0;
+const double p=0.8;
 const double lenP=5.0;
 double const c=1.0;// coefficient which control affect of select next node
 double evaRate=0.8;
@@ -16,7 +16,8 @@ vector<int> xBest;
 vector<int> d;
 vector<vector<int>> dk(pop+1);
 vector<vector<int>> lk(pop+1);
-
+double maxphe=0;
+double miphe=100;
 random_device rd;   
 mt19937 gen(rd());
 
@@ -258,6 +259,39 @@ void updateLocation(vector<int> &l,int t,vector<int> &dk,vector<int> &lk){
         encirlingThePrey(l,dk,lk,r);
     }
 }
+void boudaryNodeAdjustment(vector<int> &l,vector<int> &dk,vector<int> &lk){
+    vector<int> tmpl;
+    vector<int> dktmp;
+    vector<int> lktmp;
+    int s=*max_element(l.begin(),l.end());
+    bool dd[s+1]={};
+    
+    for (int i=1;i<=N;i++){
+        if (isBoundaryNode(l,i)){
+            dd[l[i]]=true;
+            for (int neighbor:e[i])
+                if (l[i]!=l[neighbor] && !dd[l[neighbor]]){
+                    dd[l[neighbor]]=true;
+                    
+                    tmpl=l;
+                    dktmp=dk;
+                    lktmp=lk;
+
+                    transfer(dk,lk,l,i,l[i],l[neighbor]);
+                    l[i]=l[neighbor];
+
+                    if (modularity(dk,lk)<modularity(dktmp,lktmp)){
+                        dk=dktmp;
+                        lk=lktmp;
+                        l=tmpl;
+                    }
+                }
+
+            for (int i=1;i<=s;i++)
+                dd[i]=false;
+        }
+    }
+}
 void boundaryPheromone(vector<int> &l,vector<int> &dk,vector<int> &lk){
     vector<int> tmpl;
     vector<int> dktmp;
@@ -265,7 +299,7 @@ void boundaryPheromone(vector<int> &l,vector<int> &dk,vector<int> &lk){
     double totalChance;
     double randChance;
     double check;
-    
+    int dd[N+1]={};
     for (int i=1;i<=N;i++)
         if (isBoundaryNode(l,i)){
             tmpl=l;
@@ -274,36 +308,75 @@ void boundaryPheromone(vector<int> &l,vector<int> &dk,vector<int> &lk){
 
             totalChance=0;
             for (int j:e[i])
-                totalChance+=pow(pheromone[i][l[j]],c);
+                if (!dd[l[j]])
+                    totalChance+=pow(pheromone[i][l[j]],c),dd[l[j]]=1;
 
             uniform_real_distribution dis(0.0,totalChance);
             randChance=dis(gen);
             check=0;
 
-            for (int j:e[i]){
-                check+=pow(pheromone[i][l[j]],c);
-                if (check>randChance){
-                    transfer(dk,lk,l,i,l[i],l[j]);
-                    l[i]=l[j];
-                    break;
+            for (int j:e[i])
+                if (dd[l[j]]==1){
+                    check+=pow(pheromone[i][l[j]],c);
+                    if (check>randChance){
+                        transfer(dk,lk,l,i,l[i],l[j]);
+                        l[i]=l[j];
+                        break;
+                    }
+                    dd[l[j]]++;
                 }
-            }
 
             if (modularity(dk,lk)<modularity(dktmp,lktmp)){
                 dk=dktmp;
                 lk=lktmp;
                 l=tmpl;
             }
+
+            for (int j:e[i]) dd[l[j]]=0;
         }
 }
+
+void ACOSolution(vector<int> &l,vector<int> &dk,vector<int> &lk){
+    double totalChance;
+    double randChance;
+    double check;
+    int dd[N+1]={};
+    for (int i=1;i<=N;i++){
+            totalChance=0;
+            for (int j:e[i])
+                if (!dd[l[j]])
+                    totalChance+=pow(pheromone[i][l[j]],c),dd[l[j]]=1;
+
+            uniform_real_distribution dis(0.0,totalChance);
+            randChance=dis(gen);
+            check=0;
+
+            for (int j:e[i])
+                if (dd[l[j]]==1){
+                    check+=pow(pheromone[i][l[j]],c);
+                    if (check>randChance){
+                        transfer(dk,lk,l,i,l[i],l[j]);
+                        l[i]=l[j];
+                        break;
+                    }
+                    dd[l[j]]++;
+                }
+
+            for (int j:e[i]) dd[l[j]]=0;
+    }
+}
+
 
 void updatePheromone(double ans,int t){
     for (int i=1;i<=N;i++)
         for (int j=1;j<=N;j++)
                 pheromone[i][j]*=evaRate;
 
-    for (int i=1;i<=N;i++)
+    for (int i=1;i<=N;i++){
         pheromone[i][xBest[i]]+=pow(ans,2.0);
+        maxphe=max(maxphe,pheromone[i][xBest[i]]);
+        miphe=min(miphe,pheromone[i][xBest[i]]);
+    }
 }
 
 
@@ -315,21 +388,37 @@ void EP_WOCD_ACO(){
             ans=modularity(dk[i],lk[i]);
             xBest=x[i];
         }
-
+    updatePheromone(ans,0);
+    
+    bool whichTurn=0;
+    int acoTime=4;
+    int woaTime=4;
+    int stableDown=acoTime;
     for (int t=1;t<=T;t++){
-        for (int p=1;p<=pop;p++){
-            updateLocation(x[p],t,dk[p],lk[p]);
-            mutation(x[p],dk[p],lk[p],0.3);
-            boundaryPheromone(x[p],dk[p],lk[p]);
-        }
+        for (int p=1;p<=pop;p++)
+            if (whichTurn==1){
+                updateLocation(x[p],t,dk[p],lk[p]);
+                mutation(x[p],dk[p],lk[p],0.3);
+                boudaryNodeAdjustment(x[p],dk[p],lk[p]);
+            }
+            else ACOSolution(x[p],dk[p],lk[p]);
+
         for (int i=1;i<=pop;i++){
             if (modularity(dk[i],lk[i])>ans){
                 ans=modularity(dk[i],lk[i]);
                 xBest=x[i];
-            }
-
-            
+                if (whichTurn) stableDown=woaTime;
+                else stableDown=acoTime;
+            }            
         }
+
+        stableDown--;
+        if (!stableDown){
+            whichTurn=!whichTurn;
+            if (whichTurn) stableDown=woaTime,acoTime*=2;
+            else stableDown=acoTime,woaTime*=2;
+        }
+
         EPD();  
         updatePheromone(ans,t);      
     }    
