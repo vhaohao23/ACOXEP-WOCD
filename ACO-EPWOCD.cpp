@@ -265,6 +265,7 @@ void boundaryPheromone(vector<int> &l,vector<int> &dk,vector<int> &lk){
     double totalChance;
     double randChance;
     double check;
+    
     for (int i=1;i<=N;i++)
         if (isBoundaryNode(l,i)){
             tmpl=l;
@@ -272,21 +273,18 @@ void boundaryPheromone(vector<int> &l,vector<int> &dk,vector<int> &lk){
             lktmp=lk;
 
             totalChance=0;
-            for (int j=1;j<=N;j++)
-            if (dk[j]){
-                totalChance+=pow(pheromone[i][j],c);
-            }
+            for (int j:e[i])
+                totalChance+=pow(pheromone[i][l[j]],c);
 
             uniform_real_distribution dis(0.0,totalChance);
             randChance=dis(gen);
             check=0;
 
-            for (int j=1;j<=N;j++)
-            if (dk[j]){
-                check+=pow(pheromone[i][j],c);
+            for (int j:e[i]){
+                check+=pow(pheromone[i][l[j]],c);
                 if (check>randChance){
-                    transfer(dk,lk,l,i,l[i],j);
-                    l[i]=j;
+                    transfer(dk,lk,l,i,l[i],l[j]);
+                    l[i]=l[j];
                     break;
                 }
             }
