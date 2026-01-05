@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #000; 
+    margin: 0;
+    font-family: 'Courier New', Courier, monospace;
+    overflow: hidden;
+  }
+  .container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  #heartCanvas {
+    /* Tạo hiệu ứng bóng đổ cho trái tim rực rỡ hơn */
+    filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.7));
+  }
+  .center-text {
+    position: absolute;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 2s; /* Hiện chữ mượt mà */
+    pointer-events: none;
+    text-shadow: 0 0 5px #ff0000;
+  }
+</style>
+</head>
+<body>
+
+  <div class="container">
+    <canvas id="heartCanvas" width="500" height="500"></canvas>
+    <div id="loveText" class="center-text">
+      <h1>HAPPY BIRTHDAY</h1>
+      <span style="font-size: 30px; color: #ff4d4d;">Quỳnh</span><br>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('heartCanvas');
+    const ctx = canvas.getContext('2d');
+    const textDiv = document.getElementById('loveText');
+    
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.translate(width / 2, height / 2);
+    ctx.scale(1, -1); 
+
+    ctx.strokeStyle = "#ff0000";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+
+    let t = 0;
+    const numSteps = 800;
+    const delay = 5;
+
+    function drawHeart() {
+      const scaleFactor = 13; 
+      const x = 16 * Math.pow(Math.sin(t), 3) * scaleFactor;
+      const y = (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * scaleFactor;
+
+      if (t === 0) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+
+      t += (2 * Math.PI) / numSteps;
+
+      if (t <= 2 * Math.PI) {
+        setTimeout(drawHeart, delay);
+      } else {
+        textDiv.style.opacity = "1";
+        startGlow();
+      }
+    }
+
+    function startGlow() {
+        let opacity = 1;
+        let direction = -1;
+        setInterval(() => {
+            opacity += 0.05 * direction;
+            if (opacity <= 0.5 || opacity >= 1) direction *= -1;
+            textDiv.style.opacity = opacity;
+        }, 100);
+    }
+
+    drawHeart();
+  </script>
+</body>
+</html>
